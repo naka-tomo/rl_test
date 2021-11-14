@@ -2,6 +2,7 @@ import numpy as np
 import random
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 # 迷路を定義：（1, 1）がスタート，(1, 5)がゴール
 maze = np.array([
@@ -27,7 +28,7 @@ class PolicyNet(nn.Module):
         self.softmax = nn.Softmax(dim=-1)
     
     def forward(self, x):
-        x = self.softmax( self.layer1( x ) )
+        x = F.relu( self.layer1( x ) )
         value = self.layer_value( x )
         action_prob = self.softmax( self.layer_policy(x) )
 

@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
 # 迷路を定義：（1, 1）がスタート，(1, 5)がゴール
 maze = np.array([
     [-1 ,-1, -1, -1, -1, -1, -1],
@@ -20,22 +19,34 @@ action_size = 4
 gamma = 0.99    # 報酬の割引率
 
 # actionの確率と状態価値を出力するネットワーク
-class PolicyNet(nn.Module):
+class ActorNet(nn.Module):
     def __init__(self):
         super().__init__()
-        self.layer1 = nn.Linear(maze.shape[0]*maze.shape[1], 32)
-        self.layer_policy = nn.Linear(32, action_size)
-        self.layer_value = nn.Linear(32, 1 )
+        self.fc1 = nn.Linear(maze.shape[0]*maze.shape[1], 16)
+        self.fc2 = nn.Linear(16, action_size)
     
-    def forward(self, x):
-        x = F.relu( self.layer1( x ) )
-        value = self.layer_value( x )
-        action_prob = F.softmax( self.layer_policy(x) )
+    def forward(self, s):
+        h = F.relu( self.fc1( s ) )
+        action_prob = F.softmax( self.fc2(h) )
+        return action_prob
 
-        return action_prob, value
+class CriticNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.fc1 = nn.Linear(maze.shape[0]*maze.shape[1]+action_size, 32)
+        self.fc2 = nn.Linear(32, 1)
+    
+    def forward(self, s, a):
+        h = torch.cat([s, a], dim=-1)
+        h = F.relu( self.fc1( h ) )
+        
+        value = self.fc2(h)
+        return value
 
-policy_net = PolicyNet()
-optimizer = torch.optim.Adam( policy_net.parameters(), lr=0.001 )
+actor_net = ActorNet()
+critic_net = CriticNet()
+optimizer_actor = torch.optim.Adam( actor_net.parameters(), lr=0.001 )
+optimizer_critic = torch.optim.Adam( critic_net.parameters(), lr=0.001 )
 
 # 迷路で実行可能なaction
 actions = [ 
@@ -50,7 +61,7 @@ def show_policy():
     for y in range(maze.shape[0]):
         for x in range( maze.shape[1] ):
             s = conv_to_onehot((y,x))
-            action_prob, value = policy_net( s )
+            action_prob = actor_net( s )
             a = np.argmax( action_prob.detach().numpy()  ) 
 
             if maze[y,x]==-1:
@@ -85,8 +96,11 @@ for i in range(5000):
     while 1:
         # action予測
         s = conv_to_onehot(current_state)
-        action_prob, state_value = policy_net( s )
-        action_idx = np.random.choice( range(4), p=action_prob.detach().numpy()  )
+        action_prob = actor_net( s ).detach().numpy() 
+        action_prob += 0.2
+        action_prob = action_prob/np.sum(action_prob)
+        action_idx = np.random.choice( range(4), p=action_prob  )
+        #action_idx = np.argmax( action_prob.detach().numpy() )
 
         # 移動
         prev_state = current_state
@@ -97,7 +111,7 @@ for i in range(5000):
         total_reward += reward
 
         # 情報を保存
-        episode.append( (s, reward, action_idx, action_prob.detach()) )
+        episode.append( (s, action_idx, conv_to_onehot(current_state), reward) )
 
         # 衝突したら一つ前の状態に戻す
         if reward==-1:
@@ -107,40 +121,33 @@ for i in range(5000):
         if reward==1:
             break
             
-    # 累積割引報酬を計算
-    accum_reward = 0
-    rewards = []
-    for _ ,r ,_ , _ in episode[::-1]:
-        accum_reward = r + gamma * accum_reward
-        rewards.insert(0, accum_reward )
-
-    # policy更新
+    # actor, critic更新
+    loss_critic = 0
+    loas_actor = 0
     for _ in range(5):
-        # policyとvalue関数のlossを計算
-        loss_policy = 0
-        loss_value = 0
-        loss_entropy = 0
-        for i, (s, r, a, old_action_prob) in enumerate(episode):
-            action_prob, state_value = policy_net( s )
-            advantage = rewards[i] - state_value.detach()
+        # Q値を学習
+        loss_critic = 0
+        for s, a, next_s, r in episode:
+            q_value = critic_net( s, torch.eye(action_size)[a] )
+            next_a = torch.argmax(actor_net(next_s))
+            next_a = torch.eye(action_size)[next_a]
+            q_value_next = critic_net( next_s, next_a ).detach()
+            loss_critic += (r + gamma*q_value_next - q_value)**2
+        optimizer_critic.zero_grad()
+        loss_critic.backward()
+        optimizer_critic.step()
 
-            eps = 0.2
-            beta = 0.01
-            ratio = action_prob[a]/old_action_prob[a]
-            loss_policy += -torch.min( ratio * advantage, torch.clamp(ratio, 1-eps, 1+eps) * advantage )
-            loss_value += (rewards[i] - state_value)**2
-            loss_entropy += beta * torch.sum( action_prob * torch.log( action_prob+0.000000001 ) )
-
-        loss = loss_policy + loss_value + loss_entropy
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        # Q値が最大となるactionを学習
+        loss_actor = 0
+        for s, _, _, _ in episode:
+            loss_actor += -critic_net( s, actor_net(s) )
+        optimizer_actor.zero_grad()
+        loss_actor.backward()
+        optimizer_actor.step()
 
     # 可視化
     if i%10==0:
-        print("loss:", loss/len(episode))
+        print("critic loss:", loss_critic/len(episode))
+        print("actor loss:", loss_actor/len(episode))
         print("reward:", total_reward)
         show_policy()
-
-
-
