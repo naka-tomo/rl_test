@@ -55,8 +55,8 @@ current_state = np.array( [1, 1] )  # 現在位置
 prev_state = np.array( [1, 1] )     # 1step前にいた位置
 prev_action_idx = -1                # 1step前にとった行動
 total_reward = 0
-for i in range(2000):
-    if random.random()<epsiron:
+for i in range(1000):
+    if random.random()>epsiron:
         # 価値が最大の行動
         action_idx = np.argmax( q_table[current_state[0], current_state[1]] )
     else:

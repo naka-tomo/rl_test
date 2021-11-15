@@ -72,7 +72,7 @@ replay_buffer = []                  # データ保存用バッファ
 total_reward = 0
 
 for i in range(2000):
-    if random.random()<epsiron:
+    if random.random()>epsiron:
         # 価値が最大の行動
         s = conv_to_onehot(current_state)
         action_idx = np.argmax( q_net( s ).detach().numpy()  )
