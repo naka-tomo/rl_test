@@ -53,9 +53,9 @@ def show_q_table():
 init_state = np.array( [1, 1] )     # 初期位置
 current_state = np.array( [1, 1] )  # 現在位置
 prev_state = np.array( [1, 1] )     # 1step前にいた位置
-
+prev_action_idx = -1                # 1step前にとった行動
 total_reward = 0
-for i in range(1000):
+for i in range(2000):
     if random.random()<epsiron:
         # 価値が最大の行動
         action_idx = np.argmax( q_table[current_state[0], current_state[1]] )
@@ -63,18 +63,20 @@ for i in range(1000):
         # ランダムに行動
         action_idx = random.randint( 0, 3 )
 
+    # Q値更新
+    if prev_action_idx!=-1:
+        next_q = q_table[current_state[0], current_state[1], action_idx]
+        prev_q = q_table[prev_state[0], prev_state[1], prev_action_idx ]
+        q_table[prev_state[0], prev_state[1], prev_action_idx] +=  alpha * (reward + gamma*next_q - prev_q )
+
     # 移動
     prev_state[:] = current_state
-    current_state += actions[ action_idx ]
+    current_state = current_state + actions[action_idx]
+    prev_action_idx = action_idx
 
     # 報酬
     reward = maze[ current_state[0], current_state[1] ]
     total_reward += reward
-
-    # Q値更新
-    next_q = q_table[current_state[0], current_state[1], action_idx]
-    prev_q = q_table[ prev_state[0], prev_state[1], action_idx ]
-    q_table[prev_state[0], prev_state[1], action_idx] +=  alpha * (reward + gamma*next_q - prev_q )
 
     # 衝突したら一つ前の状態に戻す
     if reward==-1:
@@ -82,7 +84,11 @@ for i in range(1000):
 
     # ゴールしたら初期化
     if reward==1:
+        prev_q = q_table[prev_state[0], prev_state[1], action_idx ]
+        q_table[prev_state[0], prev_state[1], action_idx] +=  alpha * (reward - prev_q )
+
         print("reward:", total_reward)
         show_q_table()
         current_state[:] = init_state
         total_reward = 0
+        prev_action_idx = -1
