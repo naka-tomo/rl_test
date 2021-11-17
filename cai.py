@@ -35,17 +35,19 @@ actions = [
  ]
 
 # Qテーブルの可視化
-def show_q_table(table, pos=None):
+def show_q_table(table, current_state=None, goal_state=None):
     for y in range(maze.shape[0]):
         for x in range( maze.shape[1] ):
             a = np.argmax( table[y, x] )
 
             if maze[y, x]==-1:
                 print("■", end="")
-            elif maze[y, x]==1:
-                print("★", end="")
-            elif pos!=None and pos[0]==y and pos[1]==x:
+            elif current_state!=None and y==current_state[0] and x==current_state[1]:
                 print( "●", end="" )
+            elif goal_state!=None and y==goal_state[0] and x==goal_state[1]:
+                print("★", end="")
+            elif goal_state==None and maze[y, x]==1:
+                print("★", end="")
             elif a==0:
                 print( "→", end="" )
             elif a==1:
@@ -114,6 +116,10 @@ for i in range(1000):
         current_state[:] = init_state
         total_reward = 0
 
+print("************")
+print( "Finish to learn. Push [Enter] to start plannning. " )
+print("************")
+input()
 
 # 学習モデルを利用したプランニング: (2, 5)から(1, 1)への経路
 init_state = np.array( [2, 5] )     # 初期位置
@@ -140,7 +146,6 @@ for t in range(num_step-2,-1,-1):
                 trans_prob = trans_prob / np.sum(trans_prob)
                 q_table_t[t, y, x, a] = reward + np.log( np.sum( trans_prob * np.exp(v_table_t[t+1]) ) )
 
-
     for y in range(maze.shape[0]):
         for x in range(maze.shape[1]):
             action_prob = action_count[ y, x ]
@@ -151,7 +156,7 @@ for t in range(num_step-2,-1,-1):
     beta[t] = np.exp(v_table_t[t])
     beta[t] = beta[t] / np.sum(beta[t])
 
-# foward message計算
+# forward message計算
 alpha = np.zeros( (num_step, maze.shape[0], maze.shape[1]) )
 alpha[0, init_state[0], init_state[1]] = 1.0
 for t in range(1,num_step):
@@ -183,7 +188,7 @@ for t in range(1,num_step):
     s = np.unravel_index(np.argmax(optimality*movable), optimality.shape)
 
     print(f"time={t}, state={s}")
-    show_q_table( q_table_t[t]-v_table_t[t].reshape((maze.shape[0], maze.shape[1], 1)), s )
+    show_q_table( q_table_t[t]-v_table_t[t].reshape((maze.shape[0], maze.shape[1], 1)), s, list(goal_state) )
 
 
 
