@@ -161,7 +161,13 @@ for t in range(1,num_step):
                 trans_prob = np.copy(trans_count[ y, x, a ]) + 0.1
                 if np.sum(trans_prob):
                     trans_prob = trans_prob / np.sum(trans_prob)
-                alpha[t] += trans_prob * alpha[t-1, y, x]
+                if y==goal_state[0] and x==goal_state[1]:
+                    # ゴールであれば最適性（exp(reward)）1
+                    reward = 0
+                else:
+                    # それ以外の最適性（exp(reward)）はexp(-1)
+                    reward = -1
+                alpha[t] += np.exp(reward)*trans_prob * alpha[t-1, y, x]
     alpha[t] = alpha[t]/np.sum(alpha[t])
 
 
