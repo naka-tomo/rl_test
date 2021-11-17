@@ -10,7 +10,7 @@ maze = np.array([
     [-1,  0 , 0, -1,  0,  1, -1],
     [-1,  0 , 0, -1,  0,  0, -1],
     [-1,  0 , 0, -1,  0,  0, -1],
-    [-1,  0 , 0,  0,  0,  0, -1],
+    [-1,  0 , 0, -1,  0,  0, -1],
     [-1,  0 , 0,  0,  0,  0, -1],
     [-1 ,-1, -1, -1, -1, -1, -1]
 ])
@@ -119,7 +119,7 @@ for i in range(1000):
 init_state = np.array( [2, 5] )     # 初期位置
 goal_state = np.array( [1, 1] )     # ゴール位置
 current_state[:] = init_state
-num_step = 10
+num_step = 14
 q_table_t = np.zeros( (num_step, maze.shape[0], maze.shape[1], action_size) )
 v_table_t = np.zeros( (num_step, maze.shape[0], maze.shape[1]) )
 beta = np.zeros( (num_step, maze.shape[0], maze.shape[1]) )
