@@ -7,3 +7,4 @@
 - Actor-Critic [[code]](actor_critic.py)
 - Proximal Policy Optimization (PPO) [[code]](ppo.py)
 - Deep Deterministic Policy Gradient (DDPG)[[code]](ddpg.py)
+- Control as inference [[code]](cai.py)
